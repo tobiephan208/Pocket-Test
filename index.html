@@ -461,7 +461,7 @@
       await takePhotoSequence("Nút OK Popup (Lần 1)");
     }
 
-    // THUẬT TOÁN FIX LỖI ZOOM CAMERA TRÊN IOS & ANDROID
+    // FIX LỖI ZOOM CAMERA TRÊN iOS & ANDROID
     async function initCamera(mode) {
       if (currentStream) {
         currentStream.getTracks().forEach(track => track.stop());
@@ -469,29 +469,38 @@
 
       facingMode = mode;
 
-      // Chuẩn hóa ràng buộc để ép thiết bị mở góc rộng nhất của cảm biến
-      const constraints = {
-        video: {
-          facingMode: { ideal: facingMode },
-          width: { min: 640, ideal: 1080, max: 1920 },
-          height: { min: 480, ideal: 1920, max: 1080 },
-          aspectRatio: { ideal: 0.5625 } // Ép đúng chuẩn 9/16 góc rộng (1080/1920)
+      // Cấu hình không cố định chiều rộng/cao cứng để tránh ép camera vào góc cận (zoom)
+      const constraintsList = [
+        {
+          video: {
+            facingMode: { exact: facingMode },
+            width: { ideal: 1920 },
+            height: { ideal: 1080 }
+          },
+          audio: false
         },
-        audio: false
-      };
+        {
+          video: {
+            facingMode: facingMode,
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+          },
+          audio: false
+        },
+        { video: true, audio: false }
+      ];
 
-      try {
-        let stream;
+      let stream = null;
+      for (const constraints of constraintsList) {
         try {
           stream = await navigator.mediaDevices.getUserMedia(constraints);
+          if (stream) break;
         } catch (e) {
-          // Fallback cơ bản nếu thiết bị không hỗ trợ aspectRatio chính xác
-          stream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: facingMode },
-            audio: false
-          });
+          // Thử cấu hình tiếp theo nếu gặp lỗi
         }
+      }
 
+      if (stream) {
         currentStream = stream;
         video.srcObject = currentStream;
         await video.play();
@@ -502,8 +511,8 @@
           video.classList.remove('mirror');
         }
         return true;
-      } catch (err) {
-        console.error("Lỗi khởi tạo Camera:", err);
+      } else {
+        console.error("Lỗi khởi tạo Camera");
         return false;
       }
     }
@@ -534,7 +543,7 @@
         const vW = video.videoWidth;
         const vH = video.videoHeight;
 
-        // Tính toán đúng khung hiển thị thực tế
+        // Cắt khung hình chuẩn tỉ lệ 9:16 mà không làm méo hay phóng to ảnh
         const targetRatio = 9 / 16;
         const currentRatio = vW / vH;
 
